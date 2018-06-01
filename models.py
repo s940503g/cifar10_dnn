@@ -21,9 +21,49 @@ def default_model():
 	model.summary()
 
 	return model
+
+def gabor_model():
+	
+	def gabor_weights(shape, dtype=None):
+		import keras.backend as K
+		import cv2
+		import numpy as np
+		kernels = None
+		for i in range(shape[-1]):
+			theta = np.pi*i / shape[-1]
+			gf = cv2.getGaborKernel((shape[0], shape[1]), 1.0, theta, 2.0, 0.5, 0, ktype=cv2.CV_32F)
+			gf = np.stack((gf,)*3, -1)
+			gf = np.expand_dims(gf, -1)
+			if np.any(kernels):
+				kernels = np.concatenate((kernels, gf), -1)
+			else:
+				kernels = gf
+		return kernels
+		
+
+	input = Input(shape=(32,32,3), name='custom_inputs')
+	net = Conv2D(45, (5, 5), kernel_initializer=gabor_weights, use_bias=False, padding='same')(input)
+	net = Conv2D(64, (3, 3), padding='same')(net)
+	net = Conv2D(64, (1, 1), activation='relu', padding='same', use_bias=False)(net)
+	net = MaxPooling2D((2, 2))(net)
+	net = Conv2D(128, (3, 3), padding='same')(net)
+	net = Conv2D(128, (1, 1), activation='relu', padding='same', use_bias=False)(net)
+	net = Conv2D(128, (3, 3), padding='same')(net)
+	net = Conv2D(128, (1, 1), activation='relu', padding='same', use_bias=False)(net)
+	net = MaxPooling2D((2, 2))(net)
+
+	net = Flatten()(net)
+	net = Dense(512)(net)
+	net = Dense(512)(net)
+	predictions = Dense(10, activation='softmax')(net)
+
+	model = Model(inputs=input, outputs=predictions)
+
+	return model
 if __name__ == "__main__":
-	model = default_model()
+	model = gabor_model()
 	model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
+	model.summary()
 
 	(x_train, y_train), (x_test, y_test) = cifar10.load_data()
 
